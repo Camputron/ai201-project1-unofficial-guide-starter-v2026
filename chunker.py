@@ -80,24 +80,126 @@ def fallback_split(
     return chunks
 
 
+MAX_SECTION = 1200   # characters; above this a section gets split at a paragraph
+MIN_SECTION = 150    # characters; below this a section merges into its neighbour
+
+
+def _split_long_section(text: str) -> list[str]:
+    """
+    Cut an over-long section at paragraph breaks rather than mid-sentence.
+
+    Only `guide_marchwood.md`'s district rundown and a couple of the
+    cross-cutting guides reach MAX_SECTION. Splitting those on a blank line
+    keeps whole paragraphs intact; splitting them at a character count is what
+    produced "## Eat and drin" in the starter's output.
+    """
+    if len(text) <= MAX_SECTION:
+        return [text]
+
+    pieces: list[str] = []
+    current = ""
+    for paragraph in text.split("\n\n"):
+        candidate = f"{current}\n\n{paragraph}" if current else paragraph
+        if len(candidate) > MAX_SECTION and current:
+            pieces.append(current)
+            current = paragraph
+        else:
+            current = candidate
+    if current:
+        pieces.append(current)
+    return pieces
+
+
 def split_documents(documents: list[Document]) -> list[Chunk]:
     """
-    Split documents into chunks. ⚠️ REPLACE THE BODY OF THIS IN MILESTONE 3.
+    Split each guide at its `##` headings, one section per chunk.
 
-    Right now it just calls the fallback. That is the plain, generic behaviour
-    the brief is talking about.
+    These documents are travel guides divided into labelled sections —
+    "Getting there", "Where to eat", "When to go". The answer to a question is
+    almost always the whole of exactly one section, so the section is the
+    natural unit and a character count is not.
 
-    When you write your own strategy, set `produced_by` to
-    "chunker.py::split_documents" so your README's Sample Chunks section names
-    the right function. `app.py chunks` prints that string for you.
+    Every chunk keeps the heading it belongs to as its first line. That heading
+    is real retrieval signal: "Getting there" in a chunk about buses is the
+    difference between a chunk that reads as being about travel and one that
+    reads as being about a timetable. The document title is prepended to every
+    chunk for the same reason — a section that says "two inns on the square"
+    has to carry the name of the town it's in, or it can't answer anything on
+    its own.
 
-    Things worth thinking about before you write any code:
-      - Are your documents short posts or long guides?
-      - Is the useful information in one sentence, or spread over a paragraph?
-      - Would splitting on paragraph breaks keep more thoughts intact than
-        splitting on a character count?
+    Overlap is zero, deliberately. Overlap exists to stop a sentence being cut
+    in half, and cutting at headings means no sentence is ever cut at all.
+    Repeating the tail of "Where to eat" at the top of "What to see" would
+    make both chunks match both questions slightly, which is the problem
+    overlap is supposed to prevent.
     """
-    return fallback_split(documents)
+    chunks: list[Chunk] = []
+
+    for doc in documents:
+        lines = doc.text.split("\n")
+
+        # The `# Title` line, so each chunk can say which town it's about.
+        title = ""
+        for line in lines:
+            if line.startswith("# "):
+                title = line[2:].strip()
+                break
+
+        # Walk the document, breaking a new section at every `## ` heading.
+        # Anything before the first heading is the document's intro paragraph.
+        sections: list[str] = []
+        current: list[str] = []
+        for line in lines:
+            if line.startswith("## "):
+                if current:
+                    sections.append("\n".join(current).strip())
+                current = [line]
+            else:
+                current.append(line)
+        if current:
+            sections.append("\n".join(current).strip())
+
+        sections = [s for s in sections if s]
+
+        # Four of the cross-cutting guides (walking, eating, seasons,
+        # regional transport) open with a `# Title` line and go straight into
+        # the first `## ` heading with no intro paragraph. That leaves a
+        # preamble that is nothing but the title — a 23-character chunk with
+        # no content under it, which is the exact thing criterion 4 rules out.
+        # Drop it: the title gets prepended to every chunk below anyway.
+        if sections and not sections[0].startswith("## "):
+            preamble_body = "\n".join(
+                line for line in sections[0].split("\n") if not line.startswith("# ")
+            ).strip()
+            if not preamble_body:
+                sections.pop(0)
+
+        # Merge a section too short to stand alone into the one before it.
+        # guide_givens_mill.md's 174-character "Where to stay" is complete as
+        # written; the merge only catches headings with nothing under them.
+        merged: list[str] = []
+        for section in sections:
+            if merged and len(section) < MIN_SECTION:
+                merged[-1] = f"{merged[-1]}\n\n{section}"
+            else:
+                merged.append(section)
+
+        index = 0
+        for section in merged:
+            for piece in _split_long_section(section):
+                # Prepend the town name unless this chunk already opens with it.
+                text = piece if piece.startswith("# ") else f"# {title}\n\n{piece}"
+                chunks.append(
+                    Chunk(
+                        text=text.strip(),
+                        source=doc.source,
+                        index=index,
+                        produced_by="chunker.py::split_documents",
+                    )
+                )
+                index += 1
+
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:

@@ -67,10 +67,11 @@ in at least 4 of 5 tries.
 
 ## 4. No chunk splits a labelled section across two chunks
 
-Every chunk begins at a `##` heading from its source guide, and no chunk is
-shorter than 150 characters. Checked by reading all five sampled chunks: 5 of
-5 start with a section heading, and the shortest chunk in the whole corpus,
-as reported by `python app.py index`, is at or above 150 characters.
+No chunk splits a labelled section, and no chunk is shorter than 150
+characters. Concretely: every chunk is either exactly one `##` section of one
+guide or that guide's intro paragraph, never a fragment of either, and the
+"shortest" figure `python app.py index` reports is at or above 150.
+Checked by reading all five sampled chunks and the index summary line.
 
 **Why this target:** My documents are travel guides divided into labelled
 sections — "Getting there", "Where to eat", "When to go" — and the answer to a

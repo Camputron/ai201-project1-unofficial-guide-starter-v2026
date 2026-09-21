@@ -59,9 +59,21 @@ in at least 4 of 5 tries.
      what happened into your run log. Swap them for your own if you'd rather —
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
-**Why this target:**
-<!-- What did your distances look like when you set the cutoff in Milestone 4?
-     Was there a clean gap, or did the two groups overlap? -->
+**Why this target:** The two groups came out cleanly separated when I measured
+them in Milestone 4 — in-corpus questions topped out at 0.5023, out-of-scope
+ones started at 0.8026, and nothing landed in the 0.30-wide gap between. With
+a cutoff of 0.65 sitting in that gap, all five refusals are comfortable rather
+than marginal. I'm keeping the given target at 4 of 5 anyway instead of
+raising it to 5, because that gap is a property of these five off-topic
+questions rather than of my system. All five are from completely different
+domains — football, engine oil, ibuprofen. When I tried three off-topic
+questions that *sound* like travel, the gap mostly disappeared: "How do I get
+from Lisbon to Porto by train?" scored 0.7165, and "What is the best beach in
+Portugal?" scored **0.5836, which is under my 0.65 cutoff and would pass the
+gate**. So my real refusal rate against adversarial off-topic questions is
+worse than 5 of 5 suggests, and I'd rather have a target that admits that
+than one the easy five make look perfect. This is the first thing I'd
+investigate in unit 2.
 
 ---
 

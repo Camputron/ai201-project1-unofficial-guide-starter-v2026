@@ -22,12 +22,36 @@ names a target of "4 of 5", and four of three is not a thing.
 """
 
 QUESTIONS = [
-    # {"question": "...", "expects": "..."},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
+    # Answer sits in one section of one town guide. The easy case: if this
+    # one fails, retrieval is broken rather than merely imprecise.
+    {
+        "question": "What days do buses run from Brightwater to Kestrelford?",
+        "expects": "not at all on Sundays",
+    },
+    # The answer is a price and a condition in guide_kestrelford.md's
+    # "What to see" section, two headings away from anything about money.
+    {
+        "question": "How much does it cost to climb the church tower in Kestrelford?",
+        "expects": "£2",
+    },
+    # Deliberately hard: the answer is in guide_eating.md, a cross-cutting
+    # guide, not in the Halden Bay town guide where someone would look first.
+    {
+        "question": "Where should I eat in Halden Bay to avoid harbour front prices?",
+        "expects": "Fell Street",
+    },
+    # Tests whether a chunk kept a whole heading's worth of context. The
+    # tram frequency and the level boarding are in the same sentence pair.
+    {
+        "question": "How often do Marchwood's trams run on weekdays?",
+        "expects": "8 minutes",
+    },
+    # Spread across a paragraph rather than packed into a sentence — this is
+    # the shape guide documents fail on when chunks are cut too small.
+    {
+        "question": "Which town in the region is easiest to get around with limited mobility?",
+        "expects": "Thornby Wells",
+    },
 ]
 
 # Questions from a different world entirely. Your gate should refuse all five.

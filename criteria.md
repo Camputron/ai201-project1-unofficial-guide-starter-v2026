@@ -22,9 +22,14 @@ pipeline earns credit; *"80% seemed reasonable"* does not.
 For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
-**Why this target:**
-<!-- e.g. "One of my questions is about a topic only two documents mention, so
-     I expect that one to be hard." -->
+**Why this target:** Four of my five questions are answered inside a single
+labelled section of a single guide, so retrieval only has to find the right
+heading. The fifth — where to eat in Halden Bay — is answered in
+`guide_eating.md`, a cross-cutting guide, while the obvious place to look is
+`guide_halden_bay.md`. I expect that one to be the miss, which is why I set
+the target at 4 and not 5. Setting it at 5 would mean claiming retrieval never
+prefers the topically obvious document over the correct one, and I have no
+reason yet to believe that.
 
 ---
 
@@ -32,9 +37,14 @@ contains the answer.
 
 Every answer the system produces names at least one source document.
 
-**Why this target:**
-<!-- Why all five and not four? What about your setup makes that achievable —
-     or what would have to go wrong for it not to be? -->
+**Why this target:** All five and not four, because this one doesn't depend on
+retrieval being good — only on the answer naming a file. Every chunk carries
+its source filename through `store.py`, the grounding instruction in
+`generate.py` asks for the filename explicitly, and a refusal doesn't count as
+an answer that needs a source. For this to come out below 5 of 5 the model
+would have to ignore a direct instruction while still producing prose, which
+is a different failure from anything criteria 1 or 3 measure. A target of 4
+here would let one silent drop pass unnoticed.
 
 ---
 
@@ -55,42 +65,47 @@ in at least 4 of 5 tries.
 
 ---
 
-## 4. Something about your chunks
+## 4. No chunk splits a labelled section across two chunks
 
-<!-- YOU WRITE THIS ONE.
+Every chunk begins at a `##` heading from its source guide, and no chunk is
+shorter than 150 characters. Checked by reading all five sampled chunks: 5 of
+5 start with a section heading, and the shortest chunk in the whole corpus,
+as reported by `python app.py index`, is at or above 150 characters.
 
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
-
-
-
-**Why this target:**
-
-
+**Why this target:** My documents are travel guides divided into labelled
+sections — "Getting there", "Where to eat", "When to go" — and the answer to a
+question is almost always the whole of one section. The starter's fixed
+800-character cutter produced 51 chunks from 14 documents and a shortest chunk
+of 24 characters, which was a heading stranded from the text underneath it.
+A chunk that begins mid-section has lost the heading that says what it's
+about, and a 24-character chunk can't answer anything. I picked 150 rather
+than a higher floor because five sections in this corpus are genuinely short
+and complete — the shortest is the 173-character "Where to stay" in
+`guide_givens_mill.md`, which says there is nowhere to stay in the village and
+needs no more words than that. A 200-character floor would force those five to
+merge with a neighbouring section, which is a worse chunker dressed up as a
+passing criterion.
 
 ---
 
-## 5. Your choice
+## 5. Answers cite the document the fact actually came from
 
-<!-- YOU WRITE THIS ONE TOO.
+For at least 4 of my 5 test questions, the source file named in the answer is
+a document that genuinely contains that fact — not merely a document about
+the right town. I check this by opening the named file and looking for the
+fact.
 
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
-
-
-**Why this target:**
-
+**Why this target:** This corpus makes a wrong-but-plausible citation easy.
+Nine of my fourteen documents are town guides, and five cut across all of
+them — eating, walking, transport, seasons, accessibility. The same fact
+often appears in both, and some facts, like Halden Bay's Fell Street being
+cheaper than the harbour front, live *only* in the cross-cutting guide. An
+answer citing `guide_halden_bay.md` for that would look right to anyone not
+checking, which is exactly the kind of error criterion 2 waves through:
+criterion 2 asks whether a source is named, and a confidently wrong filename
+satisfies it completely. I set 4 of 5 rather than 5 of 5 for the same reason
+as criterion 1 — the Halden Bay question is the one I expect to fail, and
+it would be dishonest to set a target here that assumes it won't.
 
 
 ---

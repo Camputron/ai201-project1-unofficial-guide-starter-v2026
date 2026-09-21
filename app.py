@@ -27,7 +27,7 @@ def cmd_corpora(args):
         marker = "*" if name == config.CORPUS else " "
         print(f"{marker} {name}")
         print(f"    {blurb}\n")
-    print("* = current default, set in config.py (AI201_CORPUS in .env wins)")
+    print("* = current default, set in config.py (AI201_CORPUS in .nv wins)")
 
 
 def cmd_index(args):

@@ -279,6 +279,12 @@ Rules:
 - Use only the information in the documents below. Do not use anything you know from elsewhere.
 - If the documents don't cover the question, say you don't have enough information. Do not guess.
 - Name the document your answer came from, using the filename given in each excerpt.
+- Cite the excerpt the fact is actually written in, not the one whose title
+  best matches the question. Several excerpts may be about the same place
+  while only one states the fact you are using. If you use facts from two
+  excerpts, name both.
+- Do not add detail that is not in the excerpts, even if it sounds likely for
+  a place of this kind.
 - Be brief. Two or three sentences is usually enough."""
 
 

@@ -40,10 +40,17 @@ TOP_K = 5               # how many chunks to pull back per question
 #
 # LOWER IS BETTER: 0.3 is a close match, 0.9 is unrelated.
 #
-# 0.6 is a reasonable starting point, not a right answer. Milestone 4 has you
-# measure your own two groups of distances and put the cutoff in the gap.
-# Most corpora land somewhere between 0.45 and 0.75.
-THRESHOLD = 0.6
+# Measured in Milestone 4 against city_guides at the section-based chunking.
+# My five in-corpus questions had best distances 0.1975 - 0.5023; the five
+# OUT_OF_SCOPE ones ran 0.8026 - 0.9753. Nothing landed in between, so the
+# gap is 0.5023 .. 0.8026 and any number inside it separates the two groups.
+#
+# 0.65 rather than the starter's 0.6: both work on today's numbers, but 0.6
+# leaves only 0.098 of headroom above my hardest real question (the mobility
+# one at 0.5023) while 0.65 leaves 0.148 and still refuses the nearest
+# out-of-scope question by 0.15. A question phrased less directly than my
+# five is more likely to creep upward than an off-topic one is to creep down.
+THRESHOLD = 0.65
 
 
 # ─── Models ──────────────────────────────────────────────────────────────────

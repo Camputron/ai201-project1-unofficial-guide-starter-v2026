@@ -252,17 +252,101 @@ came from being made to justify a number rather than from the code.
 
      Milestone 1. -->
 
+Evidence: [results/run_2026-10-04_2326_before.md](results/run_2026-10-04_2326_before.md)
+(`python run_eval.py --label before`, 3 runs per question, cache off, top-k 5,
+cutoff 0.65) and [results/probe_2026-10-04_2328_before.md](results/probe_2026-10-04_2328_before.md)
+(`python tools/probe.py --label before`, retrieval only, no model calls).
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunks contain the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. No chunk splits a section; shortest ≥ 150 chars | 0 splits, ≥ 150 | 0 splits, 174 | 0 splits, 174 | 0 splits, 174 | MET |
+| 5. Cited file genuinely contains the fact | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
+**How each row was counted.** There's no `scorer.py`, so `run_eval.py` left
+its pass/fail cells blank and I judged every one of the 15 answers by hand.
+
+- **Criterion 1** — I printed the five retrieved chunks for each question and
+  checked them for a phrase from the document that actually answers it (the
+  `ANSWER_MARKERS` in `tools/probe.py`). Retrieval is deterministic, so all
+  three runs saw identical chunks, and the best distances in the results file
+  agree to four places on every run.
+- **Criterion 2** — each of the 15 answers names at least one `.md` file.
+- **Criterion 3** — one deterministic pass from `run_eval.py::check_out_of_scope`,
+  so the same number appears in all three columns.
+- **Criterion 4** — `python app.py index` reported *94 chunks, 322 characters
+  on average (shortest 174, longest 762)*. For each of the 14 documents, the
+  number of chunks equals its `##` sections plus its intro paragraph (if it has one),
+  so no section was split or merged. Chunking happens once at index time, so
+  it's the same in every run.
+- **Criterion 5** — for every file each answer cited, I grepped that file for
+  the fact. All 15 answers cite only files that contain it.
+
+The runs really did re-run. Wording changes between runs (the mobility answer
+in run 3 adds *"because it is flat, compact, and everything is within three
+minutes"*, and the Halden Bay answer formats its citation differently each
+time), which wouldn't happen with a cached answer.
+
+### Real output (run 1 unless noted)
+
+**Criteria 1 and 5 — retrieval for the mobility question**, the closest call
+in the set. Produced by `store.py::search` and recorded by `tools/probe.py::main`:
+
+```
+# Which town in the region is easiest to get around with limited mobility?
+  1. guide_corry_vale.md#2           0.5023
+  2. guide_accessibility.md#0        0.5113
+  3. guide_accessibility.md#3        0.5326
+  4. guide_accessibility.md#1        0.5528  CONTAINS Thornby Wells
+  5. guide_corry_vale.md#0           0.5569
+```
+
+**Criteria 2 and 5 — answers**, produced by `generate.py::answer_from_chunks`
+via `run_eval.py::run_once`:
+
+```
+Q: What days do buses run from Brightwater to Kestrelford?
+Buses run from Brightwater to Kestrelford roughly hourly on weekdays and every
+two hours on Saturdays, but they do not run on Sundays.
+Source: `guide_kestrelford.md` (and also mentioned in `guide_regional_transport.md`).
+
+Q: How much does it cost to climb the church tower in Kestrelford?
+It costs £2 to climb the church tower in Kestrelford (guide_kestrelford.md).
+
+Q: Where should I eat in Halden Bay to avoid harbour front prices?
+To avoid harbour front prices in Halden Bay, you should eat on Fell Street, which
+is one level up and offers comparable food for roughly half the price.
+Source: `guide_halden_bay.md` and `guide_eating.md`.
+
+Q: How often do Marchwood's trams run on weekdays?
+Marchwood's trams run every 8 minutes on weekdays (guide_marchwood.md).
+
+Q: Which town in the region is easiest to get around with limited mobility?
+Thornby Wells is the easiest town in the region to get around with limited
+mobility (guide_accessibility.md).
+```
+
+**Criterion 3 — the gate**, produced by `run_eval.py::check_out_of_scope`:
+
+```
+Out-of-scope questions (the gate should refuse these):
+  refused  (best distance 0.803)  What is the capital of Mongolia?
+  refused  (best distance 0.888)  How do I change the oil in a diesel engine?
+  refused  (best distance 0.975)  Who won the 1994 World Cup?
+  refused  (best distance 0.835)  What is the recommended dosage of ibuprofen for a headache?
+  refused  (best distance 0.836)  How do I write a for loop in Rust?
+  -> gate refused 5 of 5
+```
+
+**Criterion 4 — chunking**, produced by `chunker.py::split_documents`, summary
+from `chunker.py::describe`:
+
+```
+  stored   94 chunks in 12.4s
+94 chunks, 322 characters on average (shortest 174, longest 762), produced by chunker.py::split_documents
+```
 
 ## Verdicts
 

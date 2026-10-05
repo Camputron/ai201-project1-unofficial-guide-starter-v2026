@@ -464,34 +464,103 @@ phrases that decide whether a chunk actually answers the question.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** Hybrid search. In `store.py::search`, when
+`config.HYBRID_SEARCH` is on, the new `store.py::_hybrid_search` ranks every
+chunk twice: by embedding distance and by BM25 keyword score (`rank-bm25`,
+already in `requirements.txt`). It merges the two rankings with reciprocal rank
+fusion (`1/(60 + rank)` from each list) and keeps the top 5. Each result
+still carries its real cosine distance, so the gate compares the same kind of
+number against the same 0.65 cutoff. Nothing else changed: the chunker, top-k,
+cutoff, prompt and model are all as they were in unit 1.
 
-**Why I picked it:**
-
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
+**Why I picked it:** Near-miss 1 is semantic search gliding past an exact-term
+match. The answer chunk says "the easiest town in the region" nearly word for
+word, yet it ranked 4th behind a chunk that only shares "get around".
+Keyword matching is the direct fix for that.
 
 ### Run Log — After
 
-<!-- Same format, same five criteria, three runs each.
-     `python run_eval.py --label after` -->
+Evidence: [results/run_2026-10-04_2330_after.md](results/run_2026-10-04_2330_after.md)
+and [results/probe_2026-10-04_2330_after.md](results/probe_2026-10-04_2330_after.md).
+Same questions, same three runs, cache off.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunks contain the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. No chunk splits a section; shortest ≥ 150 chars | 0 splits, ≥ 150 | 0 splits, 174 | 0 splits, 174 | 0 splits, 174 | MET |
+| 5. Cited file genuinely contains the fact | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
-**Did it help?**
+Criterion 4 is unchanged because the chunker wasn't touched. Under criterion 5,
+mobility run 1 now also cites `guide_walking.md`. I checked it: line 14 calls
+Thornby Wells *"the region's most accessible town on foot"*, so that citation
+holds.
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
+### Before and after, side by side
 
-     Milestone 4. -->
+The five criteria didn't move, because they were all already met. What the
+change targeted shows up in the probe instead:
+
+| Question | Answer-chunk rank before | After |
+|---|---|---|
+| Buses Brightwater → Kestrelford | 1 | 1 |
+| Kestrelford church tower | 1 | 1 |
+| Halden Bay, avoiding harbour prices | 1 | 1 |
+| Marchwood tram frequency | 1 | **2** (worse) |
+| Easiest town with limited mobility | 4 | **2** (better) |
+| **Worst rank across the five** | **4** | **2** |
+
+| Travel-sounding off-topic questions | Before | After |
+|---|---|---|
+| Let through by the gate (of 10) | 6 | 6 |
+
+Real output for the mobility question after the change (`tools/probe.py`,
+via `store.py::_hybrid_search`), with the answer it produced in run 2
+(`generate.py::answer_from_chunks`):
+
+```
+| Which town in the region is easiest to get around with limited mobility? | 2 | 0.5528 | guide_accessibility.md#0 | 0.5113 |
+
+**Thornby Wells** is the easiest town in the region to get around with limited
+mobility because it is flat, compact, and everything is within three minutes
+of everything else (guide_accessibility.md).
+```
+
+**Did it help?** Yes, for the problem it was aimed at, and at a small cost
+elsewhere. I can tell because the answer-chunk ranks above come from the same
+probe run before and after. The mobility answer moved from rank 4 to rank 2,
+and the irrelevant Corry Vale chunk that used to rank first dropped out of
+the top 5 entirely. The cost is the tram question. `guide_eating.md#2`
+mentions both "Marchwood" and "tram" (*"Northgate — is a tram..."*), so BM25
+promoted it above the real answer, from rank 1 to rank 2. Overall the
+worst-case rank went from 4 to 2, so under the tighter "top 3" version of
+criterion 1 I proposed above, the system would go from a miss to a pass. On
+my five criteria as written, though, before and after are identical, and I
+won't claim otherwise.
+
+Two side effects worth naming:
+
+- **The gate's number changed for the mobility question**, from 0.5023 to
+  0.5113. The gate checks the closest chunk *among the five that come back*,
+  and the irrelevant 0.5023 Corry Vale chunk no longer comes back. So the gate
+  is now judging on a chunk that's actually about the question, but there's
+  0.009 less headroom under the cutoff.
+- **The out-of-scope questions got further from the cutoff.** Their best
+  distances rose (Mongolia 0.803 → 0.857) for the same reason: keyword matches
+  pulled in chunks that are semantically further away. It didn't change any
+  refusal, but it means hybrid retrieval makes the gate's number mean
+  something slightly different from what I calibrated in unit 1.
+
+- **The staff smoke test now fails one check.** `tools/smoke_test.py` asserts
+  that search results come back nearest-first. Fused order breaks that on
+  purpose, so 3 of its checks (one per corpus) fail with hybrid on and pass
+  with it off. I left the test alone because it encodes the unit 1 contract.
+  `test.py` still passes.
+
+It did nothing for near-miss 2. The gate still lets 6 of 10 travel-sounding
+questions through, which is what I expected, since keyword search wasn't aimed
+at the gate.
 
 ## What's Still Broken
 

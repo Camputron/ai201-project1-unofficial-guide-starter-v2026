@@ -187,7 +187,9 @@ def search(
     """
     Retrieve the chunks closest in meaning to a question.
 
-    Returns them nearest-first, each with its distance.
+    Returns them nearest-first, each with its distance — unless
+    config.HYBRID_SEARCH is on, in which case they come back in fused order
+    and a keyword match can outrank a nearer chunk.
     """
     top_k = top_k or config.TOP_K
     name = config.collection_name(corpus, variant)
@@ -198,6 +200,9 @@ def search(
         raise RuntimeError(
             f"No index called '{name}'. Run `python app.py index` first."
         ) from exc
+
+    if config.HYBRID_SEARCH:
+        return _hybrid_search(question, top_k, collection)
 
     raw = collection.query(
         query_embeddings=embed([question]),
@@ -218,6 +223,60 @@ def search(
             )
         )
     return results
+
+
+def _tokens(text: str) -> list[str]:
+    import re
+
+    return re.findall(r"[a-z0-9£]+", text.lower())
+
+
+def _hybrid_search(question: str, top_k: int, collection) -> list[Result]:
+    """
+    Unit 2's improvement: semantic ranking and BM25 keyword ranking, fused.
+
+    Both rankings cover every chunk in the collection, which at ~100 chunks is
+    cheap. They're merged with reciprocal rank fusion — each chunk scores
+    1/(RRF_K + rank) in each list — so neither score scale has to be
+    calibrated against the other.
+
+    Every Result still carries its real cosine distance, so the relevance gate
+    keeps comparing the same kind of number against the same 0.65 cutoff. What
+    changes is *which* chunks make the top k, not what distance means.
+    """
+    from rank_bm25 import BM25Okapi
+
+    count = collection.count()
+    raw = collection.query(
+        query_embeddings=embed([question]),
+        n_results=count,
+    )
+    texts = raw["documents"][0]
+    metas = raw["metadatas"][0]
+    distances = raw["distances"][0]
+
+    # Chroma returns these nearest-first, so list position is the semantic rank.
+    bm25 = BM25Okapi([_tokens(t) for t in texts])
+    keyword_scores = bm25.get_scores(_tokens(question))
+    keyword_order = sorted(range(count), key=lambda i: keyword_scores[i], reverse=True)
+    keyword_rank = {i: rank for rank, i in enumerate(keyword_order, 1)}
+
+    fused = {
+        i: 1 / (config.RRF_K + i + 1) + 1 / (config.RRF_K + keyword_rank[i])
+        for i in range(count)
+    }
+    best = sorted(fused, key=fused.get, reverse=True)[:top_k]
+
+    return [
+        Result(
+            text=texts[i],
+            source=str(metas[i].get("source", "unknown")),
+            label=f"{metas[i].get('source', 'unknown')}#{metas[i].get('index', 0)}",
+            distance=float(distances[i]),
+            produced_by=str(metas[i].get("produced_by", "unknown")),
+        )
+        for i in best
+    ]
 
 
 def index_exists(corpus: str | None = None, variant: str = "default") -> bool:

@@ -35,6 +35,14 @@ CHUNK_OVERLAP = 120     # characters shared between neighbouring chunks
 
 TOP_K = 5               # how many chunks to pull back per question
 
+# Unit 2's one improvement: hybrid search. Rank every chunk twice — by
+# embedding distance and by BM25 keyword score — and merge the two rankings
+# with reciprocal rank fusion. Diagnosis: the mobility question's answer chunk
+# says "the easiest town in the region" almost word for word, yet came back
+# 4th of 5 on meaning alone. Set False to get the unit 1 behaviour back.
+HYBRID_SEARCH = True
+RRF_K = 60              # the standard RRF constant; larger flattens rank differences
+
 # The relevance gate. If the best chunk is further away than this, the system
 # refuses to answer instead of handing the model thin material.
 #

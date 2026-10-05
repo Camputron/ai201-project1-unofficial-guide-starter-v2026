@@ -578,3 +578,74 @@ at the gate.
      differently, and why?
 
      Milestone 5. -->
+
+No criterion is missed after the fix, so nothing here is a miss. But "met"
+isn't the same as "working", and these are the things I know are still
+wrong:
+
+- **The gate still lets 6 of 10 travel-sounding off-topic questions through.**
+  The grounding prompt catches every one, so no wrong answer reaches the user,
+  but the gate isn't doing its job for this kind of question. A lower cutoff
+  can't fix it, because "trams in Amsterdam" (0.4613 before) is closer than a
+  real question. Next I'd add a coverage check to `gate.py`: refuse when the
+  question names a place that appears nowhere in the corpus (Paris,
+  Edinburgh, Portugal). That catches exactly this pattern without touching
+  distances. I stopped because this unit allows one change, and I spent it on
+  retrieval, where the near-miss could have produced a wrong answer rather
+  than just a redundant safety net.
+- **Hybrid search costs the tram question a rank** (1 → 2). The answer is still
+  retrieved, but a chunk that merely mentions "Marchwood" and "tram" now
+  outranks it. Weighting the semantic list above the keyword list in the
+  fusion would probably fix it, but tuning a weight against five questions
+  is overfitting, so I'd want more test questions first.
+- **The gate's calibration is a little stale.** The 0.65 cutoff was chosen from
+  vector-only distances in unit 1. With hybrid retrieval, the closest chunk
+  among the five that come back is sometimes not the closest chunk overall, so I'd
+  re-measure the in-corpus/out-of-scope gap and re-pick the cutoff.
+- **Criterion 5 has never been tested in the case it was written for.** None of
+  my questions has a fact that lives *only* in a cross-cutting guide, so 5/5
+  shows the citations are right, not that the system avoids the
+  plausible-but-wrong citation I was worried about.
+
+## What I'd Do Differently
+
+- **Criterion 1** should name a rank, not just "in the retrieved chunks". Top-5
+  let a rank-4 answer pass without comment, and the probe showed that was
+  the weakest point in the system. I'd write "for 5 of 5 questions, a chunk
+  containing the answer is in the top 3".
+- **Criterion 3** should be tested against off-topic questions that *sound*
+  on-topic. My unit 1 write-up already suspected this, and the probe
+  confirmed it: 5/5 on football and engine oil, but 6 of 10 travel questions
+  get past the gate. I'd also measure the whole system's refusal, not just the
+  gate's, since the prompt turned out to be the layer actually doing the work.
+- **Criterion 5** needs a test question built to make it fail. I chose the
+  Halden Bay question because I believed Fell Street appeared only in
+  `guide_eating.md`. I never grepped for it, and it's in
+  `guide_halden_bay.md` too. Next time I'd check that the trap I'm setting
+  actually exists before writing a target around it.
+- **Criteria 1, 4 and 5 can't vary between runs**, because retrieval and
+  chunking are deterministic. Only criterion 2 (and, in principle, 5) depends on
+  the model. Three runs mostly measured the same thing three times. I'd put
+  more of my criteria on the generated answer, where repeated runs actually
+  tell you something.
+
+## How I Used AI (unit 2)
+
+I had Claude Code (Claude Opus 5.5) do this unit's work with me in the
+editor. Specifically, it:
+
+- Ran `run_eval.py` before and after, judged all 30 answers by hand against
+  the source documents (there's no `scorer.py`), and grepped the corpus to
+  check every citation for criterion 5. That's how the Fell Street assumption
+  from unit 1 turned out to be wrong.
+- Wrote `tools/probe.py` to show where the answer-bearing chunk ranks and how
+  the gate handles travel-sounding off-topic questions. The rank-4 mobility
+  result and the 6-of-10 gate result both came from that probe rather than
+  from `run_eval.py`.
+- Sent the six off-topic questions that passed the gate through generation, to
+  check whether the prompt layer caught them. It did, which is why I aimed the
+  improvement at retrieval rather than the gate.
+- Implemented hybrid search in `store.py::_hybrid_search` and noticed it
+  breaks the staff smoke test's nearest-first check.
+- Drafted the verdicts, diagnoses and the write-up in this section of the
+  README.

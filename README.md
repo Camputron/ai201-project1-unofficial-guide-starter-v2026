@@ -361,11 +361,30 @@ from `chunker.py::describe`:
 
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | Retrieved chunks contain the answer, ≥ 4 of 5 | **MET** | 5/5 on all three runs. Every question had an answer-bearing chunk in its top 5. The closest call was the mobility question, where that chunk came back at rank 4 of 5 (0.5528), behind an irrelevant Corry Vale chunk. That's still a pass under the criterion as written. |
+| 2 | Every answer names a source, 5 of 5 | **MET** | All 15 answers name at least one `.md` file. No answer was a refusal, so none were exempt. |
+| 3 | Gate stops out-of-corpus questions, ≥ 4 of 5 | **MET** | The gate refused all 5. The closest one, Mongolia, scored 0.803, which is 0.15 over the 0.65 cutoff, so it wasn't marginal. |
+| 4 | No chunk splits a section; shortest ≥ 150 | **MET** | The shortest chunk is 174 characters. For every document, chunks = `##` sections + intro, so nothing was split. Not close. |
+| 5 | Cited file contains the fact, ≥ 4 of 5 | **MET** | I opened every cited file and found the fact in it, 5/5 on all three runs. I counted an answer naming two files as correct only if *both* contain the fact. Both did each time. |
+
+**Arguing the other side.** The strongest case against these verdicts is
+criterion 5. I predicted in unit 1 that the Halden Bay question would fail it,
+because I believed *Fell Street* appeared only in `guide_eating.md`. That was
+wrong. `guide_halden_bay.md` line 15 says *"Prices on the harbour front are
+roughly double those on Fell Street, one level up"*. So an answer citing the
+town guide is genuinely correct, and the question I picked to stress
+criterion 5 couldn't actually make it fail. The verdict is still MET, because
+every citation really does contain the fact. But "5 of 5" says less than it
+looks like it does, because none of my five questions has a fact that lives
+*only* in a cross-cutting guide. I haven't revised the criterion: the
+measurement itself is sound. The test questions just don't exercise it, and
+that's a test-design finding, not a broken criterion.
+
+The case against criterion 1 is that rank 4 of 5 is one position from a miss.
+The criterion only asks whether the answer is anywhere in the top 5, so the
+verdict is MET. It's also why the improvement below targets that question.
+
+No criteria were revised. `criteria.md` is unchanged.
 
 ## Diagnoses
 

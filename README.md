@@ -406,6 +406,62 @@ No criteria were revised. `criteria.md` is unchanged.
 
      Milestone 3. -->
 
+**No criterion was missed.** Honestly, that says more about how safe my
+targets were than about how good the system is. Four of my five questions
+are answered by a chunk at rank 1 with a distance under 0.44, which is the
+easy case. Below are the two near-misses that the targets let through, with
+diagnoses, and then which criteria I'd tighten.
+
+### Near-miss 1: the mobility question's answer chunk ranks 4th of 5
+
+- **Stage: embedding → retrieval.**
+- **Mechanism:** The answer is in `guide_accessibility.md#1`, a section headed
+  `## Straightforward`. That heading carries no retrieval signal. The chunk
+  also holds three towns' paragraphs (Thornby Wells, Marchwood, Brightwater),
+  so its embedding is an average of three topics and doesn't sit close to any
+  single question (0.5528). Meanwhile `guide_corry_vale.md#2` is headed
+  `## Getting around` and talks about what's "walkable". The question says
+  "get around", so the embedding model matches on those surface words and
+  ranks a chunk about a valley you can't get around *without a car* first
+  (0.5023). The literal answer phrase "the easiest town in the region" is
+  almost word-for-word what the question asks. Pure semantic search glides
+  past exactly that kind of exact-term match.
+- **Why it still passed:** top-k is 5 and the answer chunk is at 4. At
+  top-k 3, criterion 1 would be 4/5 and criterion 5 would likely fail on the
+  same question.
+
+### Near-miss 2: the gate can't separate travel-sounding off-topic questions
+
+- **Stage: retrieval → relevance gate.**
+- **Mechanism:** The gate compares one cosine distance to a fixed cutoff. Cosine
+  distance measures *topic* similarity, not whether the corpus covers the
+  place being asked about. "How often do the trams run in Amsterdam?" scores
+  0.4613 against Marchwood's tram chunk, which is *closer* than my real mobility
+  question (0.5023). So no cutoff exists that refuses it without also refusing
+  a real question. Out of 10 travel-sounding off-topic questions
+  (`tools/probe.py`), the gate let 6 through.
+- **Why it didn't cause a wrong answer:** the grounding prompt in
+  `generate.py` is the second layer. I sent all six through generation, and
+  every one came back as a refusal, e.g. *"I don't have enough information to
+  answer how often trams run in Amsterdam, as the documents only discuss
+  Marchwood, Pellew Sands, and Kestrelford."* So the system as a whole refused
+  them, but the gate wasn't the layer doing it.
+
+**The pattern:** both near-misses are the same weakness. Retrieval relies on
+embedding similarity alone, and the embedding responds to surface topic
+words ("get around", "trams", "buses") more than to the specific names and
+phrases that decide whether a chunk actually answers the question.
+
+### Criteria I'd tighten
+
+- **Criterion 1** → "for 5 of 5 questions, a chunk containing the answer is in
+  the top **3**." Today that would be a **miss** (mobility is at rank 4).
+- **Criterion 3** → also run the 10 travel-sounding questions and require the
+  *system* (gate or prompt) to refuse at least 9 of 10. The current five are
+  so far off-topic that 5/5 tells me nothing.
+- **Criterion 5** → keep the wording but add a question whose fact really lives
+  *only* in a cross-cutting guide, so the criterion can actually fail.
+
 ## The Improvement
 
 **What I changed:**
